@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Cup Simulator - Admin Panel</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span>🏆</span> World Cup Simulator
+    </div>
+    <nav>
+      <a href="standings.html">Klasemen</a>
+      <a href="matches.html">Jadwal & Hasil</a>
+      <a href="bracket.html">Bracket Knockout</a>
+      <a href="admin.html" class="active">Admin Panel</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- Login Section -->
+    <div id="login-section" class="glass-card" style="max-width: 400px; margin: 4rem auto; display: none;">
+      <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem; text-align: center;">Admin Login</h2>
+      <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">Masukkan kata sandi admin untuk mengelola turnamen.</p>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label for="password">Kata Sandi</label>
+          <input type="password" id="password" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Masuk</button>
+      </form>
+    </div>
+
+    <!-- Admin Dashboard Section -->
+    <div id="dashboard-section" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h1>Admin Dashboard</h1>
+          <p class="subtitle" style="margin-bottom: 0;">Kontrol jalannya turnamen, kelola tim, dan masukkan hasil pertandingan.</p>
+        </div>
+        <button onclick="logout()" class="btn btn-secondary">Keluar</button>
+      </div>
+
+      <!-- Action Panel & Team Management -->
+      <div class="grid" style="margin-bottom: 3rem;">
+        
+        <!-- Controls -->
+        <div class="glass-card" style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <h2 style="font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Kontrol Turnamen</h2>
+          <p style="color: var(--text-secondary); font-size: 0.95rem;">
+            <strong>Setup Turnamen:</strong> Menghapus semua hasil pertandingan lama dan menjadwalkan ulang fase grup (Round Robin) berdasarkan tim yang ada.
+          </p>
+          <button onclick="setupTournament()" class="btn btn-primary">⚙️ Setup Turnamen Baru</button>
+          
+          <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 1rem;">
+            <strong>Advance Turnamen:</strong> Jika seluruh pertandingan fase aktif selesai, panggil ini untuk maju ke babak berikutnya (Fase Knockout atau ronde berikutnya).
+          </p>
+          <button onclick="advanceTournament()" class="btn btn-secondary" style="border-color: var(--accent-primary); color: var(--accent-primary);">⚡ Advance Turnamen</button>
+        </div>
+
+        <!-- Add Team -->
+        <div class="glass-card">
+          <h2 style="font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">Tambah Tim Baru</h2>
+          <form id="add-team-form">
+            <div class="form-group">
+              <label for="team-name">Nama Negara/Tim</label>
+              <input type="text" id="team-name" required placeholder="Contoh: Indonesia">
+            </div>
+            <div class="form-group">
+              <label for="team-code">Kode Singkatan (3 Huruf)</label>
+              <input type="text" id="team-code" required maxlength="3" minlength="3" placeholder="Contoh: IDN">
+            </div>
+            <div class="form-group">
+              <label for="team-group">Grup</label>
+              <select id="team-group" required>
+                <option value="A">Grup A</option>
+                <option value="B">Grup B</option>
+                <option value="C">Grup C</option>
+                <option value="D">Grup D</option>
+                <option value="E">Grup E</option>
+                <option value="F">Grup F</option>
+                <option value="G">Grup G</option>
+                <option value="H">Grup H</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">➕ Tambah Tim</button>
+          </form>
+        </div>
+
+      </div>
+
+      <!-- Teams List & Match Input Grid -->
+      <div style="display: grid; grid-template-columns: 1fr; gap: 3rem;">
+        
+        <!-- Manage Matches -->
+        <div class="glass-card">
+          <h2 style="font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">Input Hasil Pertandingan</h2>
+          
+          <div class="filters">
+            <button class="filter-btn active" onclick="setMatchFilter('scheduled', this)">Belum Selesai (Scheduled)</button>
+            <button class="filter-btn" onclick="setMatchFilter('finished', this)">Selesai (Finished)</button>
+          </div>
+
+          <div id="matches-list-loading" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            Memuat list pertandingan...
+          </div>
+          <div id="matches-list-empty" style="text-align: center; padding: 2rem; color: var(--text-muted); display: none;">
+            Tidak ada pertandingan di kategori ini.
+          </div>
+          
+          <div class="table-wrapper">
+            <table id="matches-table" style="display: none;">
+              <thead>
+                <tr>
+                  <th>Phase / Info</th>
+                  <th>Tim Kandang</th>
+                  <th>Skor</th>
+                  <th>Tim Tandang</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="matches-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Manage Teams -->
+        <div class="glass-card">
+          <h2 style="font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">Daftar Semua Tim</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kode</th>
+                  <th>Nama Tim</th>
+                  <th>Grup</th>
+                </tr>
+              </thead>
+              <tbody id="teams-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Input Score Modal -->
+  <div class="modal-backdrop" id="score-modal-backdrop">
+    <div class="modal glass-card">
+      <div class="modal-header">
+        <h3 id="modal-match-title" style="font-size: 1.25rem; font-weight: 700;">Input Skor</h3>
+        <button class="modal-close" onclick="closeScoreModal()">&times;</button>
+      </div>
+      <form id="score-form">
+        <input type="hidden" id="modal-match-id">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem;">
+          <div style="text-align: center; flex: 1;">
+            <div id="modal-home-code" class="team-flag-placeholder" style="width: 48px; height: 32px; font-size: 1rem; font-weight:800; margin: 0 auto 0.5rem;">ARG</div>
+            <div id="modal-home-name" style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">Argentina</div>
+            <input type="number" id="modal-score-home" min="0" required style="font-size: 1.5rem; text-align: center;">
+          </div>
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-muted);">VS</div>
+          <div style="text-align: center; flex: 1;">
+            <div id="modal-away-code" class="team-flag-placeholder" style="width: 48px; height: 32px; font-size: 1rem; font-weight:800; margin: 0 auto 0.5rem;">BRA</div>
+            <div id="modal-away-name" style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">Brazil</div>
+            <input type="number" id="modal-score-away" min="0" required style="font-size: 1.5rem; text-align: center;">
+          </div>
+        </div>
+        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+          <button type="button" class="btn btn-secondary" onclick="closeScoreModal()">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan Hasil</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    let token = localStorage.getItem('token');
+    let currentMatchStatus = 'scheduled';
+    let allTeamsList = [];
+
+    // Toast Notification helper
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `
+        <span>${type === 'success' ? '✔' : '❌'}</span>
+        <div>${message}</div>
+      `;
+      container.appendChild(toast);
+      
+      toast.offsetHeight;
+      toast.classList.add('show');
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Toggle view between Login and Dashboard
+    function updateUI() {
+      const loginSection = document.getElementById('login-section');
+      const dashboardSection = document.getElementById('dashboard-section');
+
+      if (token) {
+        loginSection.style.display = 'none';
+        dashboardSection.style.display = 'block';
+        loadDashboardData();
+      } else {
+        loginSection.style.display = 'block';
+        dashboardSection.style.display = 'none';
+      }
+    }
+
+    // Login Form Submit
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('password').value;
+
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+
+        if (!response.ok) {
+          throw new Error('Sandi salah atau koneksi gagal');
+        }
+
+        const data = await response.json();
+        token = data.token;
+        localStorage.setItem('token', token);
+        showToast('Login berhasil!');
+        updateUI();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    // Logout
+    function logout() {
+      token = null;
+      localStorage.removeItem('token');
+      updateUI();
+      showToast('Berhasil keluar.');
+    }
+
+    // Fetch dashboard info (teams & matches)
+    async function loadDashboardData() {
+      await loadTeams();
+      await loadMatches();
+    }
+
+    // Load Teams
+    async function loadTeams() {
+      try {
+        const response = await fetch('/api/teams');
+        if (!response.ok) throw new Error();
+        allTeamsList = await response.json();
+
+        // Update list header with total count
+        const headers = document.querySelectorAll('h2');
+        headers.forEach(h => {
+          if (h.innerText.includes('Daftar Semua Tim')) {
+            h.innerText = `Daftar Semua Tim (${allTeamsList.length})`;
+          }
+        });
+
+        const tbody = document.getElementById('teams-tbody');
+        tbody.innerHTML = '';
+        allTeamsList.forEach(team => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><div class="team-flag-placeholder" style="width: 24px; height: 16px; font-size: 0.55rem;">${team.code}</div></td>
+            <td style="font-weight: 600;">${team.name}</td>
+            <td>Grup ${team.group}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        showToast('Gagal memuat daftar tim.', 'error');
+      }
+    }
+
+    // Add Team
+    document.getElementById('add-team-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('team-name').value;
+      const code = document.getElementById('team-code').value;
+      const group = document.getElementById('team-group').value;
+
+      try {
+        const response = await fetch('/api/teams', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name, code, group })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Gagal menambahkan tim');
+        }
+
+        showToast(`Berhasil menambahkan tim ${name}!`);
+        document.getElementById('team-name').value = '';
+        document.getElementById('team-code').value = '';
+        loadTeams();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    // Set Match Table Category Filter
+    function setMatchFilter(status, btn) {
+      const buttons = btn.parentElement.querySelectorAll('button');
+      buttons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentMatchStatus = status;
+      loadMatches();
+    }
+
+    // Load Matches
+    async function loadMatches() {
+      const loadingEl = document.getElementById('matches-list-loading');
+      const emptyEl = document.getElementById('matches-list-empty');
+      const tableEl = document.getElementById('matches-table');
+      const tbody = document.getElementById('matches-tbody');
+
+      loadingEl.style.display = 'block';
+      emptyEl.style.display = 'none';
+      tableEl.style.display = 'none';
+      tbody.innerHTML = '';
+
+      try {
+        const response = await fetch(`/api/matches?status=${currentMatchStatus}`);
+        if (!response.ok) throw new Error();
+        const matches = await response.json();
+        loadingEl.style.display = 'none';
+
+        if (matches.length === 0) {
+          emptyEl.style.display = 'block';
+          return;
+        }
+
+        tableEl.style.display = 'table';
+        matches.forEach(match => {
+          const isFinished = match.status === 'finished';
+          const roundInfo = match.phase === 'group' 
+            ? `Grup ${match.homeTeam.group}` 
+            : (match.round === '16' ? '16 Besar' : match.round === '8' ? 'Perempat Final' : match.round === '4' ? 'Semi Final' : 'Final');
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="font-weight: 500; font-size: 0.85rem; color: var(--text-muted);">
+              ${match.phase === 'group' ? 'Fase Grup' : 'Knockout'} • ${roundInfo}
+            </td>
+            <td style="font-weight: 600;">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div class="team-flag-placeholder" style="width: 20px; height: 14px; font-size: 0.5rem;">${match.homeTeam.code}</div>
+                ${match.homeTeam.name}
+              </div>
+            </td>
+            <td style="font-weight: 700; text-align: center; font-size: 1.1rem; width: 80px;">
+              ${isFinished ? `${match.scoreHome} - ${match.scoreAway}` : 'vs'}
+            </td>
+            <td style="font-weight: 600;">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div class="team-flag-placeholder" style="width: 20px; height: 14px; font-size: 0.5rem;">${match.awayTeam.code}</div>
+                ${match.awayTeam.name}
+              </div>
+            </td>
+            <td>
+              <button onclick="openScoreModal(${JSON.stringify(match).replace(/"/g, '&quot;')})" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                ${isFinished ? 'Edit Hasil' : 'Input Hasil'}
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        loadingEl.style.display = 'none';
+        showToast('Gagal memuat pertandingan.', 'error');
+      }
+    }
+
+    // Modal Control
+    function openScoreModal(match) {
+      document.getElementById('modal-match-id').value = match.id;
+      document.getElementById('modal-home-code').innerText = match.homeTeam.code;
+      document.getElementById('modal-home-name').innerText = match.homeTeam.name;
+      document.getElementById('modal-away-code').innerText = match.awayTeam.code;
+      document.getElementById('modal-away-name').innerText = match.awayTeam.name;
+      
+      const roundLabel = match.phase === 'group' 
+        ? `Grup ${match.homeTeam.group}` 
+        : (match.round === '16' ? '16 Besar' : match.round === '8' ? 'Perempat Final' : match.round === '4' ? 'Semi Final' : 'Final');
+      document.getElementById('modal-match-title').innerText = `Input Hasil: ${roundLabel}`;
+
+      document.getElementById('modal-score-home').value = match.status === 'finished' ? match.scoreHome : 0;
+      document.getElementById('modal-score-away').value = match.status === 'finished' ? match.scoreAway : 0;
+
+      document.getElementById('score-modal-backdrop').classList.add('open');
+    }
+
+    function closeScoreModal() {
+      document.getElementById('score-modal-backdrop').classList.remove('open');
+    }
+
+    // Submit Match Score
+    document.getElementById('score-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const matchId = document.getElementById('modal-match-id').value;
+      const scoreHome = document.getElementById('modal-score-home').value;
+      const scoreAway = document.getElementById('modal-score-away').value;
+
+      try {
+        const response = await fetch(`/api/matches/${matchId}/result`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ scoreHome, scoreAway })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Gagal menyimpan skor');
+        }
+
+        showToast('Skor pertandingan berhasil disimpan!');
+        closeScoreModal();
+        loadMatches();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    // Setup Tournament Action
+    async function setupTournament() {
+      if (!confirm('Apakah Anda yakin? Tindakan ini akan menghapus semua hasil skor pertandingan yang ada dan menjadwalkan ulang seluruh fase grup dari awal!')) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/tournament/setup', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Gagal setup turnamen');
+        }
+
+        showToast('Turnamen berhasil di-setup! Pertandingan Fase Grup telah dijadwalkan.');
+        loadMatches();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Advance Tournament Action
+    async function advanceTournament() {
+      try {
+        const response = await fetch('/api/tournament/advance', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Gagal memajukan turnamen');
+        }
+
+        showToast(data.message || 'Turnamen berhasil naik babak!');
+        loadMatches();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateUI();
+    });
+  </script>
+</body>
+</html>

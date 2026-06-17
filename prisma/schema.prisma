@@ -1,0 +1,31 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Team {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  code        String  @unique
+  group       String  // e.g., "A", "B", "C", etc.
+  homeMatches Match[] @relation("HomeTeam")
+  awayMatches Match[] @relation("AwayTeam")
+}
+
+model Match {
+  id         Int     @id @default(autoincrement())
+  homeTeamId Int
+  awayTeamId Int
+  scoreHome  Int?
+  scoreAway  Int?
+  phase      String  // "group" or "knockout"
+  status     String  @default("scheduled") // "scheduled" or "finished"
+  round      String? // e.g., "16" (Round of 16), "8" (Quarter-finals), "4" (Semi-finals), "2" (Final)
+
+  homeTeam   Team    @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Cascade)
+  awayTeam   Team    @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: Cascade)
+}

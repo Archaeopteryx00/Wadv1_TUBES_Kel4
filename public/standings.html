@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Cup Simulator - Klasemen</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span>🏆</span> World Cup Simulator
+    </div>
+    <nav>
+      <a href="standings.html" class="active">Klasemen</a>
+      <a href="matches.html">Jadwal & Hasil</a>
+      <a href="bracket.html">Bracket Knockout</a>
+      <a href="admin.html">Admin Panel</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <h1>Klasemen Grup</h1>
+    <p class="subtitle">Update klasemen otomatis berdasarkan hasil pertandingan yang diinput.</p>
+
+    <div id="standings-loading" class="glass-card" style="text-align: center; padding: 3rem;">
+      <p style="color: var(--text-secondary);">Memuat klasemen turnamen...</p>
+    </div>
+
+    <div id="standings-empty" class="glass-card" style="text-align: center; padding: 3rem; display: none;">
+      <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Belum ada data tim atau klasemen turnamen.</p>
+      <a href="admin.html" class="btn btn-primary">Setup Proyek di Admin Panel</a>
+    </div>
+
+    <div id="groups-container"></div>
+  </main>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `
+        <span>${type === 'success' ? '✔' : '❌'}</span>
+        <div>${message}</div>
+      `;
+      container.appendChild(toast);
+      
+      // Force reflow
+      toast.offsetHeight;
+      toast.classList.add('show');
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    async function loadStandings() {
+      const loadingEl = document.getElementById('standings-loading');
+      const emptyEl = document.getElementById('standings-empty');
+      const containerEl = document.getElementById('groups-container');
+
+      try {
+        const response = await fetch('/api/standings');
+        if (!response.ok) {
+          throw new Error('Gagal mengambil data klasemen');
+        }
+        
+        const standings = await response.json();
+        loadingEl.style.display = 'none';
+
+        const groupNames = Object.keys(standings);
+        if (groupNames.length === 0) {
+          emptyEl.style.display = 'block';
+          return;
+        }
+
+        emptyEl.style.display = 'none';
+        containerEl.innerHTML = '';
+
+        groupNames.forEach(groupName => {
+          const groupData = standings[groupName];
+          
+          const groupDiv = document.createElement('div');
+          groupDiv.className = 'group-container glass-card';
+          
+          let tableRowsHtml = '';
+          groupData.forEach((row, index) => {
+            const isQualified = index < 2; // top 2 qualify
+            tableRowsHtml += `
+              <tr>
+                <td style="font-weight: 700; width: 40px; color: ${isQualified ? 'var(--success)' : 'var(--text-muted)'}">
+                  ${index + 1}
+                </td>
+                <td>
+                  <div class="team-cell">
+                    <div class="team-flag-placeholder">${row.team.code}</div>
+                    <span class="team-name">${row.team.name}</span>
+                  </div>
+                </td>
+                <td style="text-align: center; font-weight: 500;">${row.played}</td>
+                <td style="text-align: center; color: var(--success);">${row.won}</td>
+                <td style="text-align: center; color: var(--warning);">${row.draw}</td>
+                <td style="text-align: center; color: var(--danger);">${row.lost}</td>
+                <td style="text-align: center; color: var(--text-secondary);">${row.goalsFor}</td>
+                <td style="text-align: center; color: var(--text-secondary);">${row.goalsAgainst}</td>
+                <td style="text-align: center; font-weight: 600;">${row.goalDifference > 0 ? '+' + row.goalDifference : row.goalDifference}</td>
+                <td style="text-align: center; font-weight: 800; color: var(--accent-primary); font-size: 1.05rem;">${row.points}</td>
+              </tr>
+            `;
+          });
+
+          groupDiv.innerHTML = `
+            <div class="group-header">
+              <span>⚽</span> Grup ${groupName}
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Pos</th>
+                    <th>Tim</th>
+                    <th style="text-align: center;">P</th>
+                    <th style="text-align: center;">M</th>
+                    <th style="text-align: center;">S</th>
+                    <th style="text-align: center;">K</th>
+                    <th style="text-align: center;">GM</th>
+                    <th style="text-align: center;">GK</th>
+                    <th style="text-align: center;">SG</th>
+                    <th style="text-align: center;">PTS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tableRowsHtml}
+                </tbody>
+              </table>
+            </div>
+          `;
+          containerEl.appendChild(groupDiv);
+        });
+
+      } catch (error) {
+        console.error(error);
+        loadingEl.style.display = 'none';
+        showToast('Gagal memuat data klasemen. Pastikan database online.', 'error');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadStandings);
+  </script>
+</body>
+</html>

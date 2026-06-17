@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Cup Simulator - Pertandingan</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span>🏆</span> World Cup Simulator
+    </div>
+    <nav>
+      <a href="standings.html">Klasemen</a>
+      <a href="matches.html" class="active">Jadwal & Hasil</a>
+      <a href="bracket.html">Bracket Knockout</a>
+      <a href="admin.html">Admin Panel</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <h1>Jadwal & Hasil Pertandingan</h1>
+    <p class="subtitle">Pantau seluruh jadwal pertandingan fase grup dan babak knockout di sini.</p>
+
+    <div class="filters">
+      <button class="filter-btn active" onclick="setPhaseFilter('', this)">Semua Phase</button>
+      <button class="filter-btn" onclick="setPhaseFilter('group', this)">Fase Grup</button>
+      <button class="filter-btn" onclick="setPhaseFilter('knockout', this)">Knockout</button>
+      <div style="flex-grow: 1;"></div>
+      <button class="filter-btn active" onclick="setStatusFilter('', this)">Semua Status</button>
+      <button class="filter-btn" onclick="setStatusFilter('scheduled', this)">Scheduled</button>
+      <button class="filter-btn" onclick="setStatusFilter('finished', this)">Finished</button>
+    </div>
+
+    <div id="matches-loading" class="glass-card" style="text-align: center; padding: 3rem;">
+      <p style="color: var(--text-secondary);">Memuat jadwal pertandingan...</p>
+    </div>
+
+    <div id="matches-empty" class="glass-card" style="text-align: center; padding: 3rem; display: none;">
+      <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Tidak ada pertandingan yang cocok dengan filter atau turnamen belum di-setup.</p>
+      <a href="admin.html" class="btn btn-primary">Setup Turnamen</a>
+    </div>
+
+    <div class="matches-grid" id="matches-container"></div>
+  </main>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    let currentPhase = '';
+    let currentStatus = '';
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `
+        <span>${type === 'success' ? '✔' : '❌'}</span>
+        <div>${message}</div>
+      `;
+      container.appendChild(toast);
+      
+      // Force reflow
+      toast.offsetHeight;
+      toast.classList.add('show');
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function setPhaseFilter(phase, btn) {
+      // Toggle active classes for phase buttons
+      const buttons = btn.parentElement.querySelectorAll('button:nth-child(-n+3)');
+      buttons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentPhase = phase;
+      loadMatches();
+    }
+
+    function setStatusFilter(status, btn) {
+      // Toggle active classes for status buttons
+      const buttons = btn.parentElement.querySelectorAll('button:nth-child(n+5)');
+      buttons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentStatus = status;
+      loadMatches();
+    }
+
+    function getRoundLabel(round) {
+      if (round === '16') return 'Round of 16';
+      if (round === '8') return 'Perempat Final';
+      if (round === '4') return 'Semi Final';
+      if (round === '2') return 'Final';
+      return round;
+    }
+
+    async function loadMatches() {
+      const loadingEl = document.getElementById('matches-loading');
+      const emptyEl = document.getElementById('matches-empty');
+      const containerEl = document.getElementById('matches-container');
+
+      loadingEl.style.display = 'block';
+      emptyEl.style.display = 'none';
+      containerEl.innerHTML = '';
+
+      try {
+        let url = `/api/matches?`;
+        if (currentPhase) url += `phase=${currentPhase}&`;
+        if (currentStatus) url += `status=${currentStatus}&`;
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('Gagal mengambil jadwal pertandingan');
+        }
+
+        const matches = await response.json();
+        loadingEl.style.display = 'none';
+
+        if (matches.length === 0) {
+          emptyEl.style.display = 'block';
+          return;
+        }
+
+        matches.forEach(match => {
+          const card = document.createElement('div');
+          card.className = 'match-card';
+
+          const isFinished = match.status === 'finished';
+          const isHomeWinner = isFinished && match.scoreHome > match.scoreAway;
+          const isAwayWinner = isFinished && match.scoreAway > match.scoreHome;
+
+          const roundInfo = match.phase === 'group' 
+            ? `Grup ${match.homeTeam.group}` 
+            : getRoundLabel(match.round);
+
+          card.innerHTML = `
+            <div class="match-header">
+              <span>${match.phase === 'group' ? 'Fase Grup' : 'Knockout'} • ${roundInfo}</span>
+              <span class="match-status status-${match.status}">${match.status}</span>
+            </div>
+            <div class="match-teams">
+              <div class="team-row">
+                <div class="team-info">
+                  <div class="team-flag-placeholder">${match.homeTeam.code}</div>
+                  <span class="team-name">${match.homeTeam.name}</span>
+                </div>
+                <span class="team-score ${isHomeWinner ? 'winner' : ''}">
+                  ${isFinished ? match.scoreHome : '-'}
+                </span>
+              </div>
+              <div class="team-row">
+                <div class="team-info">
+                  <div class="team-flag-placeholder">${match.awayTeam.code}</div>
+                  <span class="team-name">${match.awayTeam.name}</span>
+                </div>
+                <span class="team-score ${isAwayWinner ? 'winner' : ''}">
+                  ${isFinished ? match.scoreAway : '-'}
+                </span>
+              </div>
+            </div>
+          `;
+          containerEl.appendChild(card);
+        });
+
+      } catch (error) {
+        console.error(error);
+        loadingEl.style.display = 'none';
+        showToast('Gagal memuat jadwal pertandingan.', 'error');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadMatches);
+  </script>
+</body>
+</html>

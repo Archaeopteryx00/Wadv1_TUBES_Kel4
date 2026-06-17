@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Cup Simulator - Bracket Knockout</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span>🏆</span> World Cup Simulator
+    </div>
+    <nav>
+      <a href="standings.html">Klasemen</a>
+      <a href="matches.html">Jadwal & Hasil</a>
+      <a href="bracket.html" class="active">Bracket Knockout</a>
+      <a href="admin.html">Admin Panel</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <h1>Bracket Knockout Stage</h1>
+    <p class="subtitle">Visualisasi perjalanan tim dari Babak Gugur hingga menjadi Juara Dunia.</p>
+
+    <div id="bracket-loading" class="glass-card" style="text-align: center; padding: 3rem;">
+      <p style="color: var(--text-secondary);">Memuat bracket turnamen...</p>
+    </div>
+
+    <div id="bracket-empty" class="glass-card" style="text-align: center; padding: 3rem; display: none;">
+      <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Fase knockout belum dimulai. Semua pertandingan fase grup harus diselesaikan terlebih dahulu.</p>
+      <a href="admin.html" class="btn btn-primary">Kembali ke Admin Panel</a>
+    </div>
+
+    <div class="bracket-wrapper" id="bracket-wrapper" style="display: none;">
+      <div class="bracket-container" id="bracket-container">
+        <!-- Rounds will be injected here dynamically -->
+      </div>
+    </div>
+  </main>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `
+        <span>${type === 'success' ? '✔' : '❌'}</span>
+        <div>${message}</div>
+      `;
+      container.appendChild(toast);
+      
+      // Force reflow
+      toast.offsetHeight;
+      toast.classList.add('show');
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function getRoundLabel(round) {
+      if (round === '16') return '16 Besar';
+      if (round === '8') return 'Perempat Final';
+      if (round === '4') return 'Semi Final';
+      if (round === '2') return 'Final';
+      return `Babak ${round}`;
+    }
+
+    async function loadBracket() {
+      const loadingEl = document.getElementById('bracket-loading');
+      const emptyEl = document.getElementById('bracket-empty');
+      const wrapperEl = document.getElementById('bracket-wrapper');
+      const containerEl = document.getElementById('bracket-container');
+
+      try {
+        const response = await fetch('/api/bracket');
+        if (!response.ok) {
+          throw new Error('Gagal memuat bracket');
+        }
+
+        const bracket = await response.json();
+        loadingEl.style.display = 'none';
+
+        // Check if any rounds contain matches
+        const activeRounds = Object.keys(bracket).filter(r => bracket[r].length > 0);
+        
+        if (activeRounds.length === 0) {
+          emptyEl.style.display = 'block';
+          wrapperEl.style.display = 'none';
+          return;
+        }
+
+        emptyEl.style.display = 'none';
+        wrapperEl.style.display = 'block';
+        containerEl.innerHTML = '';
+
+        // Order rounds logically: 16 -> 8 -> 4 -> 2
+        const roundOrder = ['16', '8', '4', '2'];
+        
+        roundOrder.forEach(roundKey => {
+          const matches = bracket[roundKey];
+          if (!matches || matches.length === 0) return;
+
+          const roundDiv = document.createElement('div');
+          roundDiv.className = 'bracket-round';
+          
+          const header = document.createElement('div');
+          header.className = 'bracket-round-header';
+          header.innerText = getRoundLabel(roundKey);
+          roundDiv.appendChild(header);
+
+          matches.forEach(match => {
+            const isFinished = match.status === 'finished';
+            const isHomeWinner = isFinished && match.scoreHome > match.scoreAway;
+            const isAwayWinner = isFinished && match.scoreAway > match.scoreHome;
+
+            const matchDiv = document.createElement('div');
+            matchDiv.className = 'bracket-match';
+            matchDiv.innerHTML = `
+              <div class="bracket-team ${isHomeWinner ? 'winner' : ''}">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div class="team-flag-placeholder" style="width: 20px; height: 14px; font-size: 0.5rem;">${match.homeTeam.code}</div>
+                  <span>${match.homeTeam.name}</span>
+                </div>
+                <span class="bracket-score ${isHomeWinner ? 'winner' : ''}">${isFinished ? match.scoreHome : '-'}</span>
+              </div>
+              <div class="bracket-team ${isAwayWinner ? 'winner' : ''}">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div class="team-flag-placeholder" style="width: 20px; height: 14px; font-size: 0.5rem;">${match.awayTeam.code}</div>
+                  <span>${match.awayTeam.name}</span>
+                </div>
+                <span class="bracket-score ${isAwayWinner ? 'winner' : ''}">${isFinished ? match.scoreAway : '-'}</span>
+              </div>
+            `;
+            roundDiv.appendChild(matchDiv);
+          });
+
+          containerEl.appendChild(roundDiv);
+        });
+
+      } catch (error) {
+        console.error(error);
+        loadingEl.style.display = 'none';
+        showToast('Gagal memuat bracket turnamen.', 'error');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadBracket);
+  </script>
+</body>
+</html>
