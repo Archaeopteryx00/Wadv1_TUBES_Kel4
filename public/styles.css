@@ -358,6 +358,17 @@ tr:hover td {
   border-color: var(--text-primary);
 }
 
+.btn-danger {
+  background: #ef4444;
+  color: white;
+  border: 1px solid #ef4444;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
 /* Forms & Inputs */
 .form-group {
   margin-bottom: 1.25rem;

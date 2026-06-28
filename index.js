@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
 app.post('/api/login', (req, res) => {
   const { password } = req.body;
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-  
+
   if (password === adminPassword) {
     const token = jwt.sign(
       { role: 'admin' },
@@ -52,7 +52,7 @@ app.post('/api/teams', authMiddleware, async (req, res, next) => {
     if (!name || !code || !group) {
       return res.status(400).json({ error: 'All fields (name, code, group) are required' });
     }
-    
+
     const formattedName = name.trim();
     const formattedCode = code.toUpperCase().trim();
     const formattedGroup = group.toUpperCase().trim();
@@ -73,6 +73,63 @@ app.post('/api/teams', authMiddleware, async (req, res, next) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Team name or code already exists.' });
     }
+    next(error);
+  }
+});
+
+app.get('/api/teams/:id', async (req, res, next) => {
+  try {
+    const team = await prisma.team.findUnique({
+      where: {
+        id: parseInt(req.params.id)
+      }
+    });
+
+    if (!team) {
+      return res.status(404).json({
+        error: 'Team not found'
+      });
+    }
+
+    res.json(team);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/teams/:id', authMiddleware, async (req, res, next) => {
+  try {
+    const { name, code, group } = req.body;
+
+    const updatedTeam = await prisma.team.update({
+      where: {
+        id: parseInt(req.params.id)
+      },
+      data: {
+        name,
+        code,
+        group
+      }
+    });
+
+    res.json(updatedTeam);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/teams/:id', authMiddleware, async (req, res, next) => {
+  try {
+    await prisma.team.delete({
+      where: {
+        id: parseInt(req.params.id)
+      }
+    });
+
+    res.json({
+      message: 'Team deleted'
+    });
+  } catch (error) {
     next(error);
   }
 });
@@ -418,7 +475,7 @@ app.post('/api/tournament/advance', authMiddleware, async (req, res, next) => {
     } else if (knockoutMatches.length > 0) {
       // Scenario B: Advancing within the Knockout Stage
       const rounds = ["16", "8", "4", "2"];
-      
+
       const unfinishedKnockout = knockoutMatches.filter(m => m.status !== 'finished');
       if (unfinishedKnockout.length > 0) {
         const activeRound = unfinishedKnockout[0].round;
